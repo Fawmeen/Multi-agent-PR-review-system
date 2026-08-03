@@ -95,7 +95,11 @@ CREATE INDEX IF NOT EXISTS idx_code_chunks_embedding
 -- CONTINUOUS AGGREGATES (for economics dashboard)
 -- ============================================================
 
--- 1-minute aggregate for real-time cost monitoring
+-- 1-minute aggregate for real-time cost monitoring-- ============================================================
+-- CONTINUOUS AGGREGATES (for economics dashboard)
+-- ============================================================
+
+-- 1‑minute aggregate for real‑time cost monitoring
 CREATE MATERIALIZED VIEW IF NOT EXISTS agent_health_1m
 WITH (timescaledb.continuous) AS
 SELECT
@@ -110,9 +114,18 @@ WHERE event_type = 'llm_call'
 GROUP BY bucket, agent_name
 WITH NO DATA;
 
--- Refresh policy (refresh every minute, for the last 5 minutes)
-SELECT add_continuous_aggregate_policy('agent_health_1m',
-    start_offset => INTERVAL '5 minutes',
-    end_offset => INTERVAL '1 minute',
-    schedule_interval => INTERVAL '1 minute'
-);
+-- Refresh policy — only add if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM timescaledb_information.jobs
+        WHERE proc_name = 'policy_refresh_continuous_aggregate'
+        AND hypertable_name = 'agent_health_1m'
+    ) THEN
+        PERFORM add_continuous_aggregate_policy('agent_health_1m',
+            start_offset => INTERVAL '5 minutes',
+            end_offset => INTERVAL '1 minute',
+            schedule_interval => INTERVAL '1 minute'
+        );
+    END IF;
+END $$;

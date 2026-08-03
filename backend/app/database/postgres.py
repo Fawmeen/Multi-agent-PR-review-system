@@ -2,6 +2,7 @@
 PostgreSQL / Tiger Cloud async connection setup.
 Uses SQLAlchemy 2.0 async API with asyncpg driver.
 """
+import re
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 # pyrefly: ignore [missing-import]
@@ -10,11 +11,6 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-# Build SSL connect args for asyncpg if using cloud database
-connect_args = {}
-if "tigerdb" in settings.tiger_database_url or "neon" in settings.tiger_database_url or "aws" in settings.tiger_database_url:
-    connect_args = {"ssl": "require"}
-
 # Create async engine with connection pooling
 engine = create_async_engine(
     settings.tiger_database_url,
@@ -22,10 +18,9 @@ engine = create_async_engine(
     max_overflow=settings.tiger_pool_overflow,
     echo=settings.debug,
     future=True,
-    connect_args=connect_args,  # SSL for cloud databases
 )
 
-# Async session factory — used as a FastAPI dependency
+# Async session factory
 AsyncSessionLocal = async_sessionmaker(
     engine,
     class_=AsyncSession,
@@ -46,17 +41,55 @@ async def init_tiger_schema():
     )
     with open(migration_path, "r") as f:
         sql = f.read()
+
+    # Smart SQL splitter — handles DO $$ ... END $$ blocks
+    statements = []
+    current = []
+    in_do_block = False
+
+    for line in sql.split('\n'):
+        stripped = line.strip()
+
+        if stripped.upper().startswith('DO $$'):
+            in_do_block = True
+        if stripped == 'END $$;':
+            in_do_block = False
+
+        current.append(line)
+
+        if stripped.endswith(';') and not in_do_block:
+            statement = '\n'.join(current).strip()
+            if statement and not statement.startswith('--'):
+                statements.append(statement)
+            current = []
+
+    if current:
+        statement = '\n'.join(current).strip()
+        if statement and not statement.startswith('--'):
+            statements.append(statement)
+
     async with engine.begin() as conn:
-        for statement in sql.split(";"):
-            statement = statement.strip()
-            if statement:
+        for i, statement in enumerate(statements):
+            try:
                 await conn.execute(text(statement))
-        print("✅ Tiger schema initialized successfully")
+            except Exception as e:
+                error_msg = str(e)
+                if "already exists" in error_msg.lower() or "duplicate" in error_msg.lower():
+                    print(f"  ⚠️  Statement {i+1} skipped (already exists): {statement[:80]}...")
+                else:
+                    print(f"  ❌ Statement {i+1} failed: {error_msg[:200]}")
+                    raise
+
+    print("✅ Tiger schema initialized successfully")
 
 
 async def get_db_session() -> AsyncSession:
     """
     FastAPI dependency that yields an async database session.
+    Usage:
+        @router.get("/reviews")
+        async def list_reviews(db: AsyncSession = Depends(get_db_session)):
+            ...
     """
     async with AsyncSessionLocal() as session:
         try:
