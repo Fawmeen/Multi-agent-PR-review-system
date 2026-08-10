@@ -15,14 +15,15 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = False
     
-    # Gemini API
-    gemini_api_key: str
-    gemini_model: str = "gemini-1.5-pro"  # Default model, can override
+    # OpenRouter API (OpenAI-compatible)
+    openrouter_api_key: str
+    openrouter_model: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
     
     # Tiger Database (TimescaleDB + pgvectorscale)
     tiger_database_url: str
-    tiger_pool_size: int = 10  # Connection pool size
-    tiger_pool_overflow: int = 5  # Extra connections when pool is full
+    tiger_pool_size: int = 10
+    tiger_pool_overflow: int = 5
     
     # Upstash Redis
     upstash_redis_url: str
@@ -31,12 +32,13 @@ class Settings(BaseSettings):
     github_webhook_secret: str
     
     # Security
-    allowed_hosts: list[str] = ["*"]  # CORS - restrict in production
+    allowed_hosts: list[str] = ["*"]
     
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
-        case_sensitive = False  # Allows UPPER_CASE in .env
+        case_sensitive = False
+        extra = "allow"   # ignore unknown env vars instead of crashing
 
 
 @lru_cache()
@@ -44,6 +46,5 @@ def get_settings() -> Settings:
     """
     Returns cached Settings instance.
     Using lru_cache ensures we only read .env once.
-    This is a FastAPI best practice for dependency injection.
     """
     return Settings()

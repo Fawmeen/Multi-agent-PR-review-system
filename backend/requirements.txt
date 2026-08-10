@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+langgraph
+langgraph-checkpoint-postgres
+langchain-core
+langchain-community
+asyncpg
+psycopg2-binary
+pydantic
+pydantic-settings
+python-multipart
+redis
+arq
+httpx
+python-dotenv
+openai
