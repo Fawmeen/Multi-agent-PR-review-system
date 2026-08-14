@@ -9,6 +9,8 @@ from sqlalchemy import select, update
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import ReviewModel, FindingModel
+from app.models.review import Review
+from app.models.findings import Finding
 
 
 class ReviewRepository:
@@ -24,6 +26,15 @@ class ReviewRepository:
 
     async def get_by_id(self, review_id: str) -> ReviewModel | None:
         return await self.session.get(ReviewModel, review_id)
+    
+    async def list_reviews(self, limit: int = 20, offset: int = 0) -> Sequence[ReviewModel]:
+        result = await self.session.execute(
+            select(ReviewModel)
+            .order_by(ReviewModel.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return result.scalars().all()
 
     async def update_status(self, review_id: str, status: str) -> None:
         stmt = (
@@ -46,11 +57,69 @@ class ReviewRepository:
         )
         await self.session.execute(stmt)
 
-    async def list_reviews(self, limit: int = 20) -> Sequence[ReviewModel]:
-        result = await self.session.execute(
-            select(ReviewModel).order_by(ReviewModel.created_at.desc()).limit(limit)
+    async def save_review_with_findings(
+        self, 
+        review: Review, 
+        findings: list[Finding]
+    ) -> ReviewModel:
+        """
+        Save a review and its findings in a single transaction.
+        
+        Converts Pydantic models to SQLAlchemy models and persists to database.
+        
+        Args:
+            review: Review Pydantic model
+            findings: List of Finding Pydantic models
+            
+        Returns:
+            Persisted ReviewModel
+            
+        Note: Caller must handle session.commit() after calling this method.
+        """
+        # Convert Review Pydantic model to ReviewModel
+        review_model = ReviewModel(
+            id=review.id,
+            repository=review.repository,
+            pr_number=review.pr_number,
+            commit_sha=review.commit_sha,
+            status=review.status,
+            workflow_run_id=review.workflow_run_id,
+            summary=review.summary.model_dump() if review.summary else {},
+            total_tokens_used=review.total_tokens_used,
+            total_cost_usd=review.total_cost_usd,
+            approved_by=review.approved_by,
+            approved_at=review.approved_at,
+            started_at=review.started_at,
+            completed_at=review.completed_at,
         )
-        return result.scalars().all()
+        
+        # Add review to session
+        self.session.add(review_model)
+        await self.session.flush()
+        
+        # Convert Finding Pydantic models to FindingModel and add to session
+        finding_models = []
+        for finding in findings:
+            finding_model = FindingModel(
+                id=finding.id,
+                review_id=review.id,
+                agent=finding.agent,
+                category=finding.category,
+                severity=finding.severity,
+                file_path=finding.file_path,
+                line_start=finding.line_start,
+                line_end=finding.line_end,
+                title=finding.title,
+                description=finding.description,
+                suggestion=finding.suggestion,
+                rule_reference=finding.rule_reference,
+            )
+            finding_models.append(finding_model)
+            self.session.add(finding_model)
+        
+        await self.session.flush()
+        
+        return review_model
 
 
 class FindingRepository:

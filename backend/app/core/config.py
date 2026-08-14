@@ -15,9 +15,13 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = False
     
-    # Gemini API
-    gemini_api_key: str
-    gemini_model: str = "gemini-1.5-pro"  # Default model, can override
+    # OpenRouter API (OpenAI-compatible)
+    openrouter_api_key: str
+    openrouter_model: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    
+    # GitHub API
+    github_token: str
     
     # Tiger Database (TimescaleDB + pgvectorscale)
     tiger_database_url: str
