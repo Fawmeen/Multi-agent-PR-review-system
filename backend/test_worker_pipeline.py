@@ -87,7 +87,8 @@ async def test_worker_full_pipeline(sample_webhook_payload, sample_diff, sample_
     """
     # Mock GitHub client
     with patch('worker.github_client') as mock_github:
-        mock_github.get_pr_diff.return_value = sample_diff
+        # Use AsyncMock for async methods
+        mock_github.get_pr_diff = AsyncMock(return_value=sample_diff)
         
         # Mock the orchestrator graph
         with patch('worker.build_review_graph') as mock_build_graph:
@@ -133,7 +134,7 @@ async def test_worker_full_pipeline(sample_webhook_payload, sample_diff, sample_
 async def test_worker_github_fetch_failure(sample_webhook_payload):
     """Test handling of GitHub fetch failures."""
     with patch('worker.github_client') as mock_github:
-        mock_github.get_pr_diff.side_effect = Exception("GitHub API error")
+        mock_github.get_pr_diff = AsyncMock(side_effect=Exception("GitHub API error"))
         
         ctx = MagicMock()
         result = await start_review_workflow(ctx, sample_webhook_payload)
@@ -158,7 +159,7 @@ async def test_worker_invalid_payload():
 async def test_worker_no_findings(sample_webhook_payload, sample_diff):
     """Test when orchestrator returns no findings (all good)."""
     with patch('worker.github_client') as mock_github:
-        mock_github.get_pr_diff.return_value = sample_diff
+        mock_github.get_pr_diff = AsyncMock(return_value=sample_diff)
         
         with patch('worker.build_review_graph') as mock_build_graph:
             mock_graph = MagicMock()
@@ -189,7 +190,7 @@ async def test_worker_no_findings(sample_webhook_payload, sample_diff):
 async def test_worker_database_error(sample_webhook_payload, sample_diff, sample_findings):
     """Test handling of database errors."""
     with patch('worker.github_client') as mock_github:
-        mock_github.get_pr_diff.return_value = sample_diff
+        mock_github.get_pr_diff = AsyncMock(return_value=sample_diff)
         
         with patch('worker.build_review_graph') as mock_build_graph:
             mock_graph = MagicMock()
