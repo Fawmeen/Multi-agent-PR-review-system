@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.models.findings import Finding
 from app.models.enums import AgentName, FindingCategory
 from app.core.exceptions import AgentExecutionError
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -73,14 +74,20 @@ class BaseAgent(ABC):
             except json.JSONDecodeError:
                 findings_data = []
 
-            # Convert to Finding objects
+            # Convert to Finding objects, validating each item and skipping invalid ones
             findings = []
             for item in findings_data:
                 if not isinstance(item, dict):
                     continue
                 item["agent"] = self.agent_name
                 item["category"] = self.category
-                findings.append(Finding(**item))
+                try:
+                    validated: Finding = Finding.model_validate(item)
+                    findings.append(validated)
+                except ValidationError as ve:
+                    logger.error(f"Invalid finding from {self.agent_name}: {ve}")
+                    # Skip invalid findings rather than failing the whole agent
+                    continue
 
             return findings
 

@@ -9,6 +9,7 @@ from app.models.findings import Finding
 from app.prompts.registry import AGGREGATOR_PROMPT
 from app.core.config import get_settings
 import json
+from pydantic import ValidationError
 # pyrefly: ignore [missing-import]
 from google import genai
 # pyrefly: ignore [missing-import]
@@ -65,7 +66,37 @@ async def aggregator_node(state: ReviewState) -> dict:
     if not findings:
         return {"consolidated_findings": []}
 
-    findings_dicts = [f.model_dump() for f in findings]
+    # Normalize and validate findings. We accept BaseModel instances or dicts.
+    findings_dicts: list[dict] = []
+    for f in findings:
+        try:
+            # If it's a Pydantic model, prefer its JSON-safe dump
+            if hasattr(f, "model_dump_json"):
+                # model_dump_json returns a JSON string with datetimes serialized
+                json_s = f.model_dump_json()
+                d = json.loads(json_s)
+            elif hasattr(f, "model_dump"):
+                d = f.model_dump()
+            elif isinstance(f, dict):
+                d = f
+            else:
+                # Fallback: try to coerce to dict
+                d = dict(f)
+
+            # Validate and canonicalize via the Finding model to ensure required fields
+            try:
+                validated: Finding = Finding.model_validate(d)
+                # Use model_dump_json to ensure JSON-safe types (datetimes -> strings)
+                d = json.loads(validated.model_dump_json())
+                findings_dicts.append(d)
+            except ValidationError as ve:
+                logger.error(f"Invalid finding from agent: {ve}")
+                # Skip invalid findings
+                continue
+        except Exception as e:
+            logger.error(f"Failed to process finding for aggregation: {e}")
+            continue
+
     findings_json = json.dumps(findings_dicts, indent=2)
 
     # Use the same OpenRouter client as the agents
