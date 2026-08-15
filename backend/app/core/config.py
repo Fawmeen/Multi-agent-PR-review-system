@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     
     # Application
     app_name: str = "AI-PR Review Agent"
-    app_version: str = "0.1.0"
+    app_version: str = "0.1.0"`
     debug: bool = False
     
     # OpenRouter API (OpenAI-compatible)

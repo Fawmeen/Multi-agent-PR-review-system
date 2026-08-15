@@ -12,6 +12,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 # pyrefly: ignore [missing-import]
 from sqlalchemy.dialects.postgresql import JSONB
+# pyrefly: ignore [missing-import]
+from pgvector.sqlalchemy import Vector
 
 
 class Base(DeclarativeBase):
@@ -75,7 +77,7 @@ class CodeChunkModel(Base):
     file_path: Mapped[str] = mapped_column(String, nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    embedding: Mapped[bytes | None] = mapped_column(None, nullable=True)  # pgvector will handle
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(768), nullable=True)
     extra_data: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 

@@ -16,6 +16,7 @@ import uuid
 from typing import Optional
 # pyrefly: ignore [missing-import]
 from arq.connections import RedisSettings
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -27,6 +28,7 @@ from app.database.postgres import AsyncSessionLocal
 from app.database.repository import ReviewRepository
 from app.database.models import ReviewModel, FindingModel
 from app.models.enums import ReviewStatus
+from app.memory.memory_service import MemoryService
 
 # Configure logging
 logging.basicConfig(
@@ -108,7 +110,19 @@ async def start_review_workflow(ctx, payload: dict) -> dict:
                 "error": f"Failed to fetch diff from GitHub: {str(e)}"
             }
         
-        # ========== Step 2: Run Multi-Agent Orchestrator ==========
+        # ========== Step 1.5: Ingest into RAG Memory ==========
+        logger.info(f"[WORKER] Ingesting diff into Memory Service")
+        try:
+            async with AsyncSessionLocal() as session:
+                memory_service = MemoryService(session)
+                await memory_service.ingest_file(
+                    content=diff, 
+                    file_path=f"pr_{pr_number}.diff", 
+                    repository=repository
+                )
+                await session.commit()
+        except Exception as e:
+            logger.error(f"[WORKER] Memory ingestion failed (continuing without it): {e}")
         logger.info(f"[WORKER] Building and invoking orchestrator graph")
         
         # Build initial state
@@ -127,11 +141,8 @@ async def start_review_workflow(ctx, payload: dict) -> dict:
         # Invoke the graph (run all agents sequentially)
         try:
             logger.info(f"[WORKER] Running orchestrator for {repository}#{pr_number}")
-            # LangGraph invoke() takes input and returns output
-            result = await asyncio.to_thread(
-                graph.invoke,
-                state.model_dump()
-            )
+            # Use LangGraph's async ainvoke
+            result = await graph.ainvoke(state.model_dump())
             
             # Convert result dict back to ReviewState
             final_state = ReviewState(**result)

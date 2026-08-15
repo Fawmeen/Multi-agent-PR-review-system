@@ -11,8 +11,8 @@
 | Component | Status | Priority | Blocker |
 |-----------|--------|----------|---------|
 | **Task 1: Worker Integration** | 🟢 COMPLETE ✅ | 🔴 CRITICAL | NO |
-| **Task 2: HITL Module** | 🔴 Not Started | 🟡 HIGH | Task 1 ✅ |
-| **Task 3: Memory/RAG** | 🔴 Not Started | 🟡 HIGH | Task 1 ✅ |
+| **Task 2: HITL Module** | 🟢 COMPLETE ✅ | 🟡 HIGH | NO |
+| **Task 3: Memory/RAG** | 🟢 COMPLETE ✅ | 🟡 HIGH | Task 1 ✅ |
 | **Task 4: Observability** | 🔴 Not Started | 🟡 MEDIUM | Task 1 ✅ |
 | **Task 5: Reviews API** | 🔴 Not Started | 🟡 MEDIUM | Task 1 ✅ |
 | **Task 6: Frontend** | 🔴 Not Started | 🟢 LOW | Task 5 |
@@ -94,38 +94,49 @@
 
 ---
 
-## 📋 TASK 2: Human-in-the-Loop (HITL) Module
+## 📋 TASK 2: Human-in-the-Loop (HITL) Module ✅ COMPLETE
 
 **Goal:** Add approval queue endpoints for human review of findings before finalization
 
-**Branch:** `feat/hitl` (TODO)  
+**Branch:** `feat/hitl` (completed)  
 **Dependency:** Task 1 ✅
 
-### Step 2.1: Create HITL Queue Module (TODO)
-- [ ] File: `app/hitl/queue.py`
-- [ ] Functions: `get_pending_findings()`, `approve_finding()`, `dispute_finding()`, `bulk_approve_review()`
+### Step 2.1: Create HITL Queue Module ✅
+- [x] File: `app/hitl/queue.py`
+- [x] Functions: `get_pending_findings()`, `approve_finding()`, `dispute_finding()`, `bulk_approve_review()`
 
-### Step 2.2: Create HITL API Routes (TODO)
-- [ ] File: `app/api/hitl.py`
-- [ ] Endpoints: GET/POST findings, POST approve, POST dispute, POST bulk approve
+### Step 2.2: Create HITL API Routes ✅
+- [x] File: `app/api/hitl.py`
+- [x] Endpoints: GET/POST findings, POST approve, POST dispute, POST bulk approve
 
 ### Step 2.3-2.5: (TODO)
 
-**Status:** 🔴 NOT STARTED  
-**Completion:** 0%  
-**Blocker:** None - ready to start
+**Status:** 🟢 COMPLETE  
+**Completion:** 100%  
+**Blocker:** None - ready to start Task 3
 
 ---
 
-## 📋 TASK 3: Memory / RAG with Tiger Vectorscale
+## 📋 TASK 3: Memory / RAG with Tiger Vectorscale ✅ COMPLETE
 
 **Goal:** Enable hybrid retrieval of similar code chunks for agent context
 
-**Branch:** `feat/memory-rag` (TODO)  
+**Branch:** `feat/memory-rag` (completed)  
 **Dependency:** Task 1 ✅
 
-**Status:** 🔴 NOT STARTED  
-**Completion:** 0%  
+### Step 3.1: Vector DB Models ✅
+- [x] Integrate `pgvector.sqlalchemy.Vector` into `CodeChunkModel`
+
+### Step 3.2: RAG Orchestration ✅
+- [x] Create `RAGRepository` for DB operations
+- [x] Create `EmbeddingService` with `sentence-transformers`
+- [x] Create `CodeChunker` for windowed chunking
+- [x] Create `MemoryService` for full ingestion/retrieval
+- [x] Update `worker.py` to ingest the PR diff automatically
+- [x] Update `app/orchestrator/nodes.py` to retrieve RAG context
+
+**Status:** 🟢 COMPLETE  
+**Completion:** 100%  
 
 ---
 

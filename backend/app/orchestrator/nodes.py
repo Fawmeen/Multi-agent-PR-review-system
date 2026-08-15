@@ -6,6 +6,8 @@ import logging
 from app.orchestrator.state import ReviewState
 from app.models.findings import Finding
 from app.models.enums import FindingCategory, FindingSeverity, AgentName
+from app.database.postgres import AsyncSessionLocal
+from app.memory.memory_service import MemoryService
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,12 @@ async def security_agent_node(state: ReviewState) -> dict:
     # 2. Parse LLM response to extract findings
     # 3. Return findings to be merged into state
     
+    # Example RAG Query:
+    async with AsyncSessionLocal() as session:
+        memory = MemoryService(session)
+        context = await memory.retrieve_context("SQL injection vulnerabilities", state.repository)
+        logger.info(f"[security_agent] RAG Context retrieved: {len(context)} bytes")
+        
     findings: list[Finding] = []
     
     # Example finding (for testing):
