@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select, update
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database.models import ReviewModel, FindingModel
+from app.database.models import ReviewModel, FindingModel, AgentEventModel
 from app.models.review import Review
 from app.models.findings import Finding
 
@@ -159,3 +159,35 @@ class FindingRepository:
             .values(is_approved=True)
         )
         await self.session.execute(stmt)
+
+
+class EventRepository:
+    """Handles insertions for observability events."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def log_events(self, events: list[dict]) -> None:
+        """
+        Log multiple raw agent events into the TimescaleDB hypertable.
+        """
+        if not events:
+            return
+            
+        event_models = []
+        for evt in events:
+            # Provide defaults for fields missing from dict
+            event_model = AgentEventModel(
+                time=evt.get("time", datetime.now(timezone.utc)),
+                event_type=evt.get("event_type", "llm_call"),
+                agent_name=evt.get("agent_name"),
+                workflow_run_id=evt.get("workflow_run_id"),
+                tokens_used=evt.get("tokens_used", 0),
+                duration_ms=evt.get("duration_ms"),
+                extra_data=evt.get("extra_data", {})
+            )
+            event_models.append(event_model)
+            
+        self.session.add_all(event_models)
+        # Flush is optional if commit is called later, but good practice
+        await self.session.flush()

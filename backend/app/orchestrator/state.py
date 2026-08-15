@@ -43,6 +43,17 @@ class ReviewState(BaseModel):
         description="Aggregated summary from the aggregator node"
     )
     
+    # Cost tracking
+    total_tokens_used: int = Field(default=0, description="Total tokens used in this review")
+    total_cost_usd: float = Field(default=0.0, description="Total estimated cost in USD")
+    per_agent_tokens: dict[str, int] = Field(default_factory=dict, description="Tokens used per agent")
+    
+    # Observability events
+    agent_events: list[dict] = Field(
+        default_factory=list,
+        description="List of raw agent events to be logged to TimescaleDB"
+    )
+    
     class Config:
         """Pydantic model configuration."""
         arbitrary_types_allowed = True

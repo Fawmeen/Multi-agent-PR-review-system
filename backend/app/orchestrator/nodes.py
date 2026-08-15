@@ -2,12 +2,17 @@
 LangGraph node definitions for the multi-agent review workflow.
 Each node represents an agent or aggregator function.
 """
+import asyncio
 import logging
+import random
+import time
+from datetime import datetime, timezone
 from app.orchestrator.state import ReviewState
 from app.models.findings import Finding
 from app.models.enums import FindingCategory, FindingSeverity, AgentName
 from app.database.postgres import AsyncSessionLocal
 from app.memory.memory_service import MemoryService
+from app.economics.tracker import EconomicsTracker
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +41,39 @@ async def security_agent_node(state: ReviewState) -> dict:
         logger.info(f"[security_agent] RAG Context retrieved: {len(context)} bytes")
         
     findings: list[Finding] = []
+    
+    # Simulate LLM processing
+    start_time = time.time()
+    await asyncio.sleep(0.5)  # Simulate network latency
+    duration_ms = (time.time() - start_time) * 1000
+    
+    # Simulate tokens for security agent
+    prompt_tokens = random.randint(800, 1500)
+    completion_tokens = random.randint(100, 300)
+    total_tokens = prompt_tokens + completion_tokens
+    
+    # Track the event
+    event = {
+        "time": datetime.now(timezone.utc),
+        "event_type": "llm_call",
+        "agent_name": AgentName.SECURITY.value,
+        "workflow_run_id": state.workflow_run_id,
+        "tokens_used": total_tokens,
+        "duration_ms": duration_ms,
+        "extra_data": {
+            "model": "gpt-4",
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens
+        }
+    }
+    state.agent_events.append(event)
+    
+    # Update agent tokens tracking
+    current_agent_tokens = state.per_agent_tokens.get(AgentName.SECURITY.value, 0)
+    state.per_agent_tokens[AgentName.SECURITY.value] = current_agent_tokens + total_tokens
+    state.total_tokens_used += total_tokens
+    state.total_cost_usd += EconomicsTracker.calculate_cost("gpt-4", prompt_tokens, completion_tokens)
+    
     
     # Example finding (for testing):
     # findings.append(Finding(
@@ -66,7 +104,35 @@ async def quality_agent_node(state: ReviewState) -> dict:
     
     findings: list[Finding] = []
     
-    # TODO: Call LLM for code quality analysis
+    # Simulate LLM processing
+    start_time = time.time()
+    await asyncio.sleep(0.3)
+    duration_ms = (time.time() - start_time) * 1000
+    
+    # Simulate tokens for quality agent
+    prompt_tokens = random.randint(500, 1200)
+    completion_tokens = random.randint(50, 200)
+    total_tokens = prompt_tokens + completion_tokens
+    
+    event = {
+        "time": datetime.now(timezone.utc),
+        "event_type": "llm_call",
+        "agent_name": AgentName.CODE_QUALITY.value,
+        "workflow_run_id": state.workflow_run_id,
+        "tokens_used": total_tokens,
+        "duration_ms": duration_ms,
+        "extra_data": {
+            "model": "gpt-3.5-turbo",
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens
+        }
+    }
+    state.agent_events.append(event)
+    
+    current_agent_tokens = state.per_agent_tokens.get(AgentName.CODE_QUALITY.value, 0)
+    state.per_agent_tokens[AgentName.CODE_QUALITY.value] = current_agent_tokens + total_tokens
+    state.total_tokens_used += total_tokens
+    state.total_cost_usd += EconomicsTracker.calculate_cost("gpt-3.5-turbo", prompt_tokens, completion_tokens)
     
     return {"findings": findings}
 

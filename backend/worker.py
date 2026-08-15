@@ -25,7 +25,7 @@ from app.core.config import get_settings
 from app.integrations import get_github_client
 from app.orchestrator import build_review_graph, ReviewState
 from app.database.postgres import AsyncSessionLocal
-from app.database.repository import ReviewRepository
+from app.database.repository import ReviewRepository, EventRepository
 from app.database.models import ReviewModel, FindingModel
 from app.models.enums import ReviewStatus
 from app.memory.memory_service import MemoryService
@@ -148,18 +148,24 @@ async def start_review_workflow(ctx, payload: dict) -> dict:
             final_state = ReviewState(**result)
             findings = final_state.findings
             summary = final_state.summary or {}
+            events = final_state.agent_events
+            total_tokens_used = final_state.total_tokens_used
+            total_cost_usd = final_state.total_cost_usd
             
             logger.info(
                 f"[WORKER] Orchestrator completed: "
-                f"findings={len(findings)}, summary={summary}"
+                f"findings={len(findings)}, summary={summary}, events={len(events)}"
             )
         except Exception as e:
             logger.error(f"[WORKER] Orchestrator failed: {e}", exc_info=True)
             findings = []
             summary = {"error": str(e)}
+            events = []
+            total_tokens_used = 0
+            total_cost_usd = 0.0
         
-        # ========== Step 3: Persist Review and Findings to Tiger ==========
-        logger.info(f"[WORKER] Saving review and {len(findings)} findings to Tiger")
+        # ========== Step 3: Persist Review, Findings, and Events to Tiger ==========
+        logger.info(f"[WORKER] Saving review, {len(findings)} findings, and {len(events)} events to Tiger")
         
         async with AsyncSessionLocal() as session:
             try:
@@ -179,6 +185,8 @@ async def start_review_workflow(ctx, payload: dict) -> dict:
                     status=review_status,
                     workflow_run_id=workflow_run_id,
                     summary=summary,
+                    total_tokens_used=total_tokens_used,
+                    total_cost_usd=total_cost_usd,
                     started_at=datetime.now(timezone.utc),
                     completed_at=datetime.now(timezone.utc),
                 )
@@ -208,9 +216,15 @@ async def start_review_workflow(ctx, payload: dict) -> dict:
                 await session.flush()
                 logger.info(f"[WORKER] Created {len(findings)} finding records")
                 
+                # Create Event records
+                if events:
+                    event_repo = EventRepository(session)
+                    await event_repo.log_events(events)
+                    logger.info(f"[WORKER] Created {len(events)} agent event records")
+                
                 # Commit transaction
                 await session.commit()
-                logger.info(f"[WORKER] Review and findings committed to Tiger")
+                logger.info(f"[WORKER] Review, findings, and events committed to Tiger")
                 
             except Exception as e:
                 logger.error(f"[WORKER] Database error: {e}", exc_info=True)

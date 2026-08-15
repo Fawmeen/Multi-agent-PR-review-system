@@ -13,7 +13,7 @@
 | **Task 1: Worker Integration** | 🟢 COMPLETE ✅ | 🔴 CRITICAL | NO |
 | **Task 2: HITL Module** | 🟢 COMPLETE ✅ | 🟡 HIGH | NO |
 | **Task 3: Memory/RAG** | 🟢 COMPLETE ✅ | 🟡 HIGH | Task 1 ✅ |
-| **Task 4: Observability** | 🔴 Not Started | 🟡 MEDIUM | Task 1 ✅ |
+| **Task 4: Observability** | 🟢 COMPLETE ✅ | 🟡 MEDIUM | Task 1 ✅ |
 | **Task 5: Reviews API** | 🔴 Not Started | 🟡 MEDIUM | Task 1 ✅ |
 | **Task 6: Frontend** | 🔴 Not Started | 🟢 LOW | Task 5 |
 
@@ -140,15 +140,24 @@
 
 ---
 
-## 📋 TASK 4: Observability and Cost Tracking (Economics)
+## 📋 TASK 4: Observability and Cost Tracking (Economics) ✅ COMPLETE
 
 **Goal:** Emit agent_events for all LLM calls; track token usage and cost per agent
 
-**Branch:** `feat/observability-economics` (TODO)  
+**Branch:** `feat/observability-economics` (completed)  
 **Dependency:** Task 1 ✅
 
-**Status:** 🔴 NOT STARTED  
-**Completion:** 0%  
+### Step 4.1: Economics Tracker ✅
+- [x] Create `EconomicsTracker` to calculate token costs.
+- [x] Integrate mock events directly into `security_agent_node` and `quality_agent_node`.
+
+### Step 4.2: TimescaleDB Integration ✅
+- [x] Create `EventRepository` to log events into `agent_events` hypertable.
+- [x] Update `worker.py` to persist `agent_events`, `total_tokens_used`, and `total_cost_usd`.
+- [x] Store token counts mapped to `AgentName`.
+
+**Status:** 🟢 COMPLETE  
+**Completion:** 100%  
 
 ---
 
