@@ -128,6 +128,14 @@ class FindingRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def get_findings_by_review_id(self, review_id: str) -> Sequence[FindingModel]:
+        result = await self.session.execute(
+            select(FindingModel)
+            .where(FindingModel.review_id == review_id)
+            .order_by(FindingModel.created_at)
+        )
+        return result.scalars().all()
+
     async def get_pending_approvals(self, review_id: str) -> Sequence[FindingModel]:
         result = await self.session.execute(
             select(FindingModel)
@@ -166,6 +174,17 @@ class EventRepository:
 
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    async def get_events_by_review_id(self, review_id: str) -> Sequence[AgentEventModel]:
+        """
+        Fetch agent events associated with a given review ID.
+        """
+        result = await self.session.execute(
+            select(AgentEventModel)
+            .where(AgentEventModel.workflow_run_id == review_id)
+            .order_by(AgentEventModel.time)
+        )
+        return result.scalars().all()
 
     async def log_events(self, events: list[dict]) -> None:
         """

@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import health_router, webhook_router, hitl_router
+from app.api import health_router, webhooks_router, hitl_router, reviews_router
 from app.database.postgres import init_tiger_schema, close_db_connection
 from app.core.config import get_settings
 
@@ -48,8 +48,9 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health_router)
-app.include_router(webhook_router)
+app.include_router(webhooks_router)
 app.include_router(hitl_router)
+app.include_router(reviews_router)
 
 
 # Optional: root endpoint
